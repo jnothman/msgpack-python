@@ -481,6 +481,36 @@ static const execute_fn template_skip = &template_execute<false>;
 static const execute_fn read_array_header = &template_container_header<0x90, 0xdc>;
 static const execute_fn read_map_header = &template_container_header<0x80, 0xde>;
 
+msgpack_unpack_func(int, _read_primitive)(msgpack_unpack_struct(_context)* ctx, const char* data, size_t len, size_t* off) {
+	static msgpack_unpack_object ARRAY_MARKER = PyString_FromString("array");
+	static msgpack_unpack_object MAP_MARKER = PyString_FromString("map");
+	static msgpack_unpack_object VAL_MARKER = PyString_FromString("value");
+	int ret;
+	msgpack_unpack_object marker;
+	if ((ret = read_array_header(ctx, data, len, off)) == 1) {
+		marker = ARRAY_MARKER;
+	} else if (ret >= 0) {
+		return ret;
+	} else if ((ret = read_map_header(ctx, data, len, off)) == 1) {
+		PyErr_Clear();
+		marker = MAP_MARKER;
+	} else if (ret >= 0) {
+		return ret;
+	} else {
+		PyErr_Clear();
+		int ret = template_construct(ctx, data, len, off);
+		if (ret != 1)
+			return ret;
+		marker = VAL_MARKER;
+	}
+	msgpack_unpack_object o = PyTuple_New(2);
+	PyTuple_SET_ITEM(o, 0, marker);
+	Py_INCREF(marker);
+	PyTuple_SET_ITEM(o, 1, ctx->stack[0].obj);
+	ctx->stack[0].obj = o;
+	return 1;
+}
+
 #undef msgpack_unpack_func
 #undef msgpack_unpack_callback
 #undef msgpack_unpack_struct

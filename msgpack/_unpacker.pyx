@@ -43,6 +43,7 @@ cdef extern from "unpack.h":
     execute_fn template_skip
     execute_fn read_array_header
     execute_fn read_map_header
+    execute_fn template_read_primitive
     void template_init(template_context* ctx)
     object template_data(template_context* ctx)
 
@@ -369,6 +370,9 @@ cdef class Unpacker(object):
         Raises `OutOfData` when there are no more bytes to unpack.
         """
         return self._unpack(read_map_header, write_bytes)
+
+    def read_primitive(self, object write_bytes=None):
+        return self._unpack(template_read_primitive, write_bytes)
 
     def __iter__(self):
         return self
